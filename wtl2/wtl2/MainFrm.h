@@ -40,6 +40,8 @@ public:
 		MESSAGE_HANDLER(WM_DESTROY, OnDestroy)
 		COMMAND_ID_HANDLER(ID_APP_EXIT, OnFileExit)
 		COMMAND_ID_HANDLER(ID_FILE_NEW, OnFileNew)
+		COMMAND_ID_HANDLER(ID_FILE_OPEN, OnFileOpen)
+		COMMAND_ID_HANDLER(ID_FILE_SAVE, OnFileSave)
 		COMMAND_ID_HANDLER(ID_VIEW_TOOLBAR, OnViewToolBar)
 		COMMAND_ID_HANDLER(ID_VIEW_STATUS_BAR, OnViewStatusBar)
 		COMMAND_ID_HANDLER(ID_APP_ABOUT, OnAppAbout)
@@ -88,6 +90,8 @@ public:
 		pLoop->AddIdleHandler(this);
 
 		// Http Server create
+		bServerInitialize=false;
+		bThreadSuspended=true;
 		m_pServer = new CHttpServer(m_view.m_hWnd);
 
 		return 0;
@@ -116,14 +120,42 @@ public:
 	LRESULT OnFileNew(WORD /*wNotifyCode*/, WORD /*wID*/, HWND /*hWndCtl*/, BOOL& /*bHandled*/)
 	{
 		// TODO: add code to initialize document
-		if( m_pServer->Initialize() )
+		if( !bServerInitialize )
+			bServerInitialize = m_pServer->Initialize();
+		else
+		{
+			if( !bThreadSuspended )
+				m_view.PostMessageW(WM_USER+10,NULL,4);
+			else
+				m_view.PostMessageW(WM_USER+10,NULL,5);
+		}
+
+		return 0L;
+	}
+	LRESULT OnFileSave(WORD /*wNotifyCode*/, WORD /*wID*/, HWND /*hWndCtl*/, BOOL& /*bHandled*/)
+	{
+		if( bServerInitialize && bThreadSuspended )
 		{
 			m_pServer->Resume();
+			bThreadSuspended = false;
 			m_view.PostMessageW(WM_USER+10,NULL,1);
 		}
-		return 0;
+
+		return 0L;
 	}
 
+	LRESULT OnFileOpen(WORD /*wNotifyCode*/, WORD /*wID*/, HWND /*hWndCtl*/, BOOL& /*bHandled*/)
+	{
+		if( bServerInitialize && !bThreadSuspended )
+		{
+			m_pServer->Suspend();
+			bThreadSuspended = true;
+			m_view.PostMessageW(WM_USER+10,NULL,2);
+		}
+
+		return 0L;
+	}
+	
 	LRESULT OnViewToolBar(WORD /*wNotifyCode*/, WORD /*wID*/, HWND /*hWndCtl*/, BOOL& /*bHandled*/)
 	{
 		static BOOL bVisible = TRUE;	// initially visible
@@ -154,5 +186,7 @@ public:
 
 private:
 	CHttpServer * m_pServer;
+	BOOL		bServerInitialize;
+	BOOL		bThreadSuspended;
 
 };

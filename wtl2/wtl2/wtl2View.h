@@ -41,6 +41,12 @@ public:
 		case 3:
 			ws1 = L"Get Processed";
 			break;
+		case 4:
+			ws1 = L"The Server is already running";
+			break;
+		case 5:
+			ws1 = L"The Server is stoped. You must press Resume button";
+			break;
 		}
 
 		if( ws1.length() )
