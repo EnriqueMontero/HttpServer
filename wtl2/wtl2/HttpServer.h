@@ -21,7 +21,7 @@ public:
 			HTTP_URL_GROUP_ID gID=0;
 			if( CreateUrlGroup(gID) )
 			{
-				AddUrlToUrlGroup(gID,L"http://172.24.44.85:80/test/");
+				AddUrlToUrlGroup(gID,L"http://+:80/");
 			}
 		}
 		return rc;
