@@ -47,6 +47,9 @@ public:
 		case 5:
 			ws1 = L"The Server is stoped. You must press Resume button";
 			break;
+		case 6:
+			ws1 = L"Post Processed";
+			break;
 		}
 
 		if( ws1.length() )

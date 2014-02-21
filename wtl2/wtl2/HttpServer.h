@@ -9,6 +9,7 @@ public:
 		:CHttpSrvImpl<CHttpServer>()
 		,CThreadImpl<CHttpServer>()
 		,m_hwnd(hwnd)
+		,m_heap(NULL)
 	{
 	}
 
@@ -21,7 +22,7 @@ public:
 			HTTP_URL_GROUP_ID gID=0;
 			if( CreateUrlGroup(gID) )
 			{
-				AddUrlToUrlGroup(gID,L"http://+:80/");
+				rc = AddUrlToUrlGroup(gID,L"http://+:80/test/");
 			}
 		}
 		return rc;
@@ -29,9 +30,18 @@ public:
 
 	DWORD Run()
 	{
-		ReceiveRequests();
+		// Create own thread heap
+		m_heap = HeapCreate(HEAP_NO_SERIALIZE,512*1024,0);
 
-		// Do something useful...
+		if( m_heap )
+		{
+			// Request processing
+			ReceiveRequests();
+
+			// delete heap
+			HeapDestroy(m_heap);
+		}
+
 		return 0;
 	}
 
@@ -39,7 +49,7 @@ public:
 	{
 		const char * response ="Vaya Mierda";
 		ULONG responseLength = strlen(response);
-		*pEntityString = (char *) ALLOC_MEM( responseLength+1 );
+		*pEntityString = (char *) HeapAlloc(m_heap,0,responseLength+1);
 
 		memcpy(*pEntityString,response,responseLength+1);
 		PostMessage(m_hwnd,WM_USER+10,NULL,3);
@@ -47,6 +57,18 @@ public:
 		return 0;
 	}
 
+	USHORT ReponseEntity(CEntity& aEntity,char **pEntityString)
+	{
+		PostMessage(m_hwnd,WM_USER+10,NULL,6);
+		return 0;
+	}
+
+	HANDLE GetHeapHandle() const
+	{
+		return m_heap;
+	}
+
 protected:
 	HWND m_hwnd;
+	HANDLE m_heap;
 };

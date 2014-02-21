@@ -11,6 +11,7 @@
 #include <assert.h>
 #include "resource.h"
  
+#include "entity.h"
 #include "Thread.h"
 #include "HttpSrvT.h"
 #include "HttpServer.h"

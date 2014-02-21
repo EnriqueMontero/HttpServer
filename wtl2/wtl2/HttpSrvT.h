@@ -1,7 +1,5 @@
 #pragma once
 
-#include <http.h>
-
 #include <vector>
 using namespace std;
 
@@ -19,10 +17,6 @@ using namespace std;
         (Response).Headers.KnownHeaders[(HeaderId)].pRawValue = (RawValue);							\
         (Response).Headers.KnownHeaders[(HeaderId)].RawValueLength = (USHORT) strlen(RawValue);     \
     }
-
-#define ALLOC_MEM(cb) HeapAlloc(GetProcessHeap(), 0, (cb))
-
-#define FREE_MEM(ptr) HeapFree(GetProcessHeap(), 0, (ptr))
 
 // Class
 template<class T>
@@ -108,15 +102,17 @@ protected:
 	DWORD ReceiveRequests()
 	{
 		// this method must be run in a worker thread
+		T *				   pT = static_cast<T*>(this);
 		ULONG              result;
 		HTTP_REQUEST_ID    requestId;
 		DWORD              bytesRead;
 		PHTTP_REQUEST      pRequest;
 		PCHAR              pRequestBuffer;
 		ULONG              requestBufferLength;
-
+		HANDLE			   heap = pT->GetHeapHandle();
+		
 		requestBufferLength = sizeof(HTTP_REQUEST) + 1024*8;
-		pRequestBuffer      = (PCHAR) ALLOC_MEM( requestBufferLength );
+		pRequestBuffer      = (PCHAR) HeapAlloc(heap, 0, requestBufferLength);
 
 		if( pRequestBuffer==NULL )
 		{
@@ -152,9 +148,9 @@ protected:
 			{
 				requestId = pRequest->RequestId;		// Keep requestId
 				requestBufferLength = bytesRead;		// Get new length
-				FREE_MEM( pRequestBuffer );				// Free old buffer
+				HeapFree(heap, 0, pRequestBuffer);		// Free old buffer
 
-				pRequestBuffer = (PCHAR) ALLOC_MEM( requestBufferLength );
+				pRequestBuffer = (PCHAR) HeapAlloc(heap, 0, requestBufferLength);
 				if( pRequestBuffer==NULL )				// Not enough memory
 				{
 					result = ERROR_NOT_ENOUGH_MEMORY;
@@ -179,7 +175,7 @@ protected:
 		}
 
 	   if( pRequestBuffer )
-		   FREE_MEM( pRequestBuffer );
+		   HeapFree(heap, 0, pRequestBuffer);
 	   
 	   return result;
 	}
@@ -194,6 +190,7 @@ protected:
 			rc = ResponseVerbGET(pRequest);
 			break;
 		case HttpVerbPOST:
+			rc = ResponseVerbPOST(pRequest);
 			break;
 		case HttpVerbPUT:
 			break;
@@ -206,13 +203,14 @@ protected:
 
 	DWORD ResponseVerbGET(PHTTP_REQUEST pRequest)
 	{
-		T*				pT = static_cast<T*>(this);
+		T *				pT = static_cast<T*>(this);
 		HTTP_RESPONSE   response;
 		HTTP_DATA_CHUNK dataChunk;
 		DWORD           bytesSent;
 		char *			pEntityString = NULL;
 		USHORT			status = pT ? pT->ReponseEntity(pRequest,&pEntityString) :500;
 		string			pReason = getReason(status);
+		HANDLE			heap = pT->GetHeapHandle();
 
 		INITIALIZE_HTTP_RESPONSE(&response,status,pReason.c_str());
 		ADD_KNOWN_HEADER(response, HttpHeaderContentType, "text/html");
@@ -240,11 +238,84 @@ protected:
 										); 
 
 		if( pEntityString )
-			FREE_MEM(pEntityString);
+			HeapFree(heap,0,pEntityString);
 
 		return rc;
 	}
 
+	DWORD ResponseVerbPOST(PHTTP_REQUEST pRequest)
+	{
+		T *				pT = static_cast<T*>(this);
+		char *			pEntityString = NULL;
+		HTTP_RESPONSE   response;
+		DWORD           bytesSent;
+
+		INITIALIZE_HTTP_RESPONSE(&response, 200, "OK");
+
+		// Get entity Body if exists
+		if( pRequest->Flags & HTTP_REQUEST_FLAG_MORE_ENTITY_BODY_EXISTS )
+		{
+			CEntity entity(CEntity::eFile);
+			
+			PVOID pEntityBuffer = entity.GetBuffer();
+			ULONG EntityBufferLength = entity.GetBufferLength();
+			ULONG BytesRead = 0, result = 0L;
+			BOOL bMoreData = TRUE;
+			
+			do
+			{
+				// Read the entity chunk from the request.
+				BytesRead = 0; 
+				result = HttpReceiveRequestEntityBody(m_requestQueue,
+													  pRequest->RequestId,
+													  0,
+													  pEntityBuffer,
+													  EntityBufferLength,
+													  &BytesRead,
+													  NULL 
+													  );
+				switch( result )
+				{
+				case NO_ERROR:
+					entity.Add(BytesRead);
+					bMoreData = TRUE;
+                    break;
+                case ERROR_HANDLE_EOF:
+					entity.Add(BytesRead);
+					bMoreData = FALSE;
+					pT->ReponseEntity(entity,&pEntityString);
+					if( pEntityString )
+					{
+						HTTP_DATA_CHUNK dataChunk;
+
+						dataChunk.DataChunkType           = HttpDataChunkFromMemory;
+						dataChunk.FromMemory.pBuffer      = pEntityString;
+						dataChunk.FromMemory.BufferLength = strlen(pEntityString);
+						response.EntityChunkCount         = 1;
+						response.pEntityChunks            = &dataChunk;
+					}
+					break;
+				default:
+					bMoreData = FALSE;
+					break;
+				}
+
+			} while( bMoreData );
+		}
+
+		return HttpSendHttpResponse(m_requestQueue,      // ReqQueueHandle
+									pRequest->RequestId, // Request ID
+									0,                   // Flags
+									&response,           // HTTP response
+									NULL,                // pReserved1
+									&bytesSent,          // bytes sent  (OPTIONAL)
+									NULL,                // pReserved2  (must be NULL)
+									0,                   // Reserved3   (must be 0)
+									NULL,                // LPOVERLAPPED(OPTIONAL)
+									NULL                 // pReserved4  (must be NULL)
+									); 
+	}
+	
 private:
 	string getReason(USHORT status) const
 	{
