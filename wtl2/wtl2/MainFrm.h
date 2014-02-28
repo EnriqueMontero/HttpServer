@@ -42,6 +42,7 @@ public:
 		COMMAND_ID_HANDLER(ID_FILE_NEW, OnFileNew)
 		COMMAND_ID_HANDLER(ID_FILE_OPEN, OnFileOpen)
 		COMMAND_ID_HANDLER(ID_FILE_SAVE, OnFileSave)
+		COMMAND_ID_HANDLER(ID_FILE_PRINT, OnURLSetting)
 		COMMAND_ID_HANDLER(ID_VIEW_TOOLBAR, OnViewToolBar)
 		COMMAND_ID_HANDLER(ID_VIEW_STATUS_BAR, OnViewStatusBar)
 		COMMAND_ID_HANDLER(ID_APP_ABOUT, OnAppAbout)
@@ -155,7 +156,15 @@ public:
 
 		return 0L;
 	}
-	
+
+	LRESULT OnURLSetting(WORD /*wNotifyCode*/, WORD /*wID*/, HWND /*hWndCtl*/, BOOL& /*bHandled*/)
+	{
+		CURLOptions url(_T("URLs Configuration:"),0,*this);
+		url.DoModal();
+
+		return 0L;
+	}
+		
 	LRESULT OnViewToolBar(WORD /*wNotifyCode*/, WORD /*wID*/, HWND /*hWndCtl*/, BOOL& /*bHandled*/)
 	{
 		static BOOL bVisible = TRUE;	// initially visible
