@@ -6,7 +6,6 @@
 #include <atlframe.h>
 #include <atlctrls.h>
 
-#define _WTL_NEW_PAGE_NOTIFY_HANDLERS
 #include <atldlgs.h>
 
 #include <atlctrlw.h>
@@ -17,12 +16,13 @@
 #include "entity.h"
 #include "Thread.h"
 #include "HttpSrvT.h"
-#include "HttpServer.h"
 
-#include "URLOptions.h"
 #include "wtl2View.h"
+#include "HttpServer.h"
+#include "URLOptions.h"
 #include "aboutdlg.h"
 #include "MainFrm.h"
+
 
 
 CAppModule _Module;

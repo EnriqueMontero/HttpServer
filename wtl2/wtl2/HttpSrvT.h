@@ -50,7 +50,6 @@ public:
 
 	bool CreateUrlGroup(HTTP_URL_GROUP_ID& gID)
 	{
-	
 		// Create a group
 		ULONG rc = HttpCreateUrlGroup(m_session,&gID,0);
 		
@@ -76,7 +75,7 @@ public:
 	bool AddUrlToUrlGroup(const HTTP_URL_GROUP_ID gID,const wchar_t *url,const HTTP_URL_CONTEXT urlC=0)
 	{
 		ULONG rc =  HttpAddUrlToUrlGroup(gID,url,urlC,0);
-		assert(rc==NO_ERROR);
+		ATLASSERT(rc==NO_ERROR);
 		return rc==NO_ERROR;
 	}
 

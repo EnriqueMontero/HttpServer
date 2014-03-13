@@ -4,6 +4,8 @@
 
 #pragma once
 
+#define WM_CODE_INFORMATION		(WM_USER+10)
+
 class CWtl2View : public CWindowImpl<CWtl2View, CListViewCtrl>
 {
 public:
@@ -17,7 +19,7 @@ public:
 
 	BEGIN_MSG_MAP(CWtl2View)
 		MESSAGE_HANDLER(WM_SIZE, OnSize)
-		MESSAGE_HANDLER(WM_USER+10,OnInformation);
+		MESSAGE_HANDLER(WM_CODE_INFORMATION,OnInformation);
 	END_MSG_MAP()
 
 // Handler prototypes (uncomment arguments if needed):
@@ -25,7 +27,7 @@ public:
 //	LRESULT CommandHandler(WORD /*wNotifyCode*/, WORD /*wID*/, HWND /*hWndCtl*/, BOOL& /*bHandled*/)
 //	LRESULT NotifyHandler(int /*idCtrl*/, LPNMHDR /*pnmh*/, BOOL& /*bHandled*/)
 
-	LRESULT OnInformation(UINT /*uMsg*/, WPARAM /*wParam*/, LPARAM lParam, BOOL& /*bHandled*/)
+	LRESULT OnInformation(UINT /*uMsg*/, WPARAM wParam, LPARAM lParam, BOOL& /*bHandled*/)
 	{
 		ULONG index = (ULONG)lParam;
 		wstring ws1(L""), ws2(L""), ws3(L"");
@@ -45,17 +47,29 @@ public:
 			ws1 = L"The Server is already running";
 			break;
 		case 5:
-			ws1 = L"The Server is stoped. You must press Resume button";
+			ws1 = L"Error starting server";
 			break;
 		case 6:
 			ws1 = L"Post Processed";
+			break;
+		case 7:
+			ws1 = L"Resume Thread error";
+			ws2 = to_wstring (wParam);
+			break;
+		case 8:
+			ws1 = *((wstring *)wParam);
+			ws2 = L"URL Added";
 			break;
 		}
 
 		if( ws1.length() )
 		{
 			int nItem = GetItemCount();
-			InsertItem(nItem,ws1.c_str());
+			nItem = InsertItem(nItem,ws1.c_str());
+			if( ws2.length() )
+				SetItemText(nItem,1,ws2.c_str());
+			if( ws3.length() )
+				SetItemText(nItem,2,ws3.c_str());
 		}
 		return 0L;
 	}

@@ -12,34 +12,29 @@ public:
 		,m_heap(NULL)
 	{
 	}
+	~CHttpServer()
+	{
+	}
 
 	BOOL Initialize()
 	{
-		// Perform initialization.
-		BOOL rc = InitializeHttp() && InitializeThread(this,CREATE_SUSPENDED);
-		if( rc )
-		{
-			HTTP_URL_GROUP_ID gID=0;
-			if( CreateUrlGroup(gID) )
-			{
-				rc = AddUrlToUrlGroup(gID,L"http://+:80/test/");
-			}
-		}
-		return rc;
+		return  InitializeThread(this,CREATE_SUSPENDED);
 	}
 
 	DWORD Run()
 	{
-		// Create own thread heap
-		m_heap = HeapCreate(HEAP_NO_SERIALIZE,512*1024,0);
-
-		if( m_heap )
+		// Thread function
+		// Perform initialization.
+		HANDLE h = HeapCreate(HEAP_NO_SERIALIZE,512*1024,0);  
+		if( h )
 		{
+			 m_heap=h;   // El destructor de clase se ejecuta antes de finalizar el thread ... m_heap queda fuera de escope.
+
 			// Request processing
 			ReceiveRequests();
-
-			// delete heap
-			HeapDestroy(m_heap);
+			
+			// Destroy heap
+			HeapDestroy(h);
 		}
 
 		return 0;
@@ -52,14 +47,14 @@ public:
 		*pEntityString = (char *) HeapAlloc(m_heap,0,responseLength+1);
 
 		memcpy(*pEntityString,response,responseLength+1);
-		PostMessage(m_hwnd,WM_USER+10,NULL,3);
+		PostMessage(m_hwnd,WM_CODE_INFORMATION,NULL,3);
 
 		return 0;
 	}
 
 	USHORT ReponseEntity(CEntity& aEntity,char **pEntityString)
 	{
-		PostMessage(m_hwnd,WM_USER+10,NULL,6);
+		PostMessage(m_hwnd,WM_CODE_INFORMATION,NULL,6);
 		return 0;
 	}
 

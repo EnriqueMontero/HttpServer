@@ -39,9 +39,9 @@ public:
 		MESSAGE_HANDLER(WM_CREATE, OnCreate)
 		MESSAGE_HANDLER(WM_DESTROY, OnDestroy)
 		COMMAND_ID_HANDLER(ID_APP_EXIT, OnFileExit)
-		COMMAND_ID_HANDLER(ID_FILE_NEW, OnFileNew)
-		COMMAND_ID_HANDLER(ID_FILE_OPEN, OnFileOpen)
-		COMMAND_ID_HANDLER(ID_FILE_SAVE, OnFileSave)
+		COMMAND_ID_HANDLER(ID_FILE_NEW, OnStart)
+		COMMAND_ID_HANDLER(ID_FILE_OPEN, OnStop)
+		COMMAND_ID_HANDLER(ID_FILE_SAVE, OnClear)
 		COMMAND_ID_HANDLER(ID_FILE_PRINT, OnURLSetting)
 		COMMAND_ID_HANDLER(ID_VIEW_TOOLBAR, OnViewToolBar)
 		COMMAND_ID_HANDLER(ID_VIEW_STATUS_BAR, OnViewStatusBar)
@@ -67,6 +67,8 @@ public:
 		SetMenu(NULL);
 
 		HWND hWndToolBar = CreateSimpleToolBarCtrl(m_hWnd, IDR_MAINFRAME, FALSE, ATL_SIMPLE_TOOLBAR_PANE_STYLE);
+		m_TB.Attach(hWndToolBar);
+		m_Menu.Attach( m_CmdBar.m_hMenu );
 
 		CreateSimpleReBar(ATL_SIMPLE_REBAR_NOBORDER_STYLE);
 		AddSimpleReBarBand(hWndCmdBar);
@@ -95,6 +97,14 @@ public:
 		bThreadSuspended=true;
 		m_pServer = new CHttpServer(m_view.m_hWnd);
 
+		// menu enabling items
+		m_Menu.EnableMenuItem(ID_FILE_NEW,MF_DISABLED);
+		m_Menu.EnableMenuItem(ID_FILE_OPEN,MF_DISABLED);
+
+		// Toolbar actions
+		m_TB.EnableButton(ID_FILE_NEW,FALSE);
+		m_TB.EnableButton(ID_FILE_OPEN,FALSE);
+
 		return 0;
 	}
 
@@ -118,51 +128,121 @@ public:
 		return 0;
 	}
 
-	LRESULT OnFileNew(WORD /*wNotifyCode*/, WORD /*wID*/, HWND /*hWndCtl*/, BOOL& /*bHandled*/)
+	LRESULT OnStart(WORD /*wNotifyCode*/, WORD /*wID*/, HWND /*hWndCtl*/, BOOL& /*bHandled*/)
 	{
 		// TODO: add code to initialize document
 		if( !bServerInitialize )
+		{
 			bServerInitialize = m_pServer->Initialize();
-		else
+			if( !bServerInitialize )	// error starting server
+				m_view.PostMessageW(WM_CODE_INFORMATION,NULL,5);
+		}
+		if( bServerInitialize )
 		{
-			if( !bThreadSuspended )
-				m_view.PostMessageW(WM_USER+10,NULL,4);
-			else
-				m_view.PostMessageW(WM_USER+10,NULL,5);
+			if(	bThreadSuspended )
+			{
+				DWORD error = m_pServer->Resume();
+				if( error==-1 )
+				{
+					error=GetLastError();
+					m_view.PostMessage(WM_CODE_INFORMATION,error,7);
+				}
+				else
+				{
+					bThreadSuspended = FALSE;
+					m_view.PostMessage(WM_CODE_INFORMATION,NULL,1);
+				}
+			}
 		}
 
 		return 0L;
 	}
-	LRESULT OnFileSave(WORD /*wNotifyCode*/, WORD /*wID*/, HWND /*hWndCtl*/, BOOL& /*bHandled*/)
-	{
-		if( bServerInitialize && bThreadSuspended )
-		{
-			m_pServer->Resume();
-			bThreadSuspended = false;
-			m_view.PostMessageW(WM_USER+10,NULL,1);
-		}
-
-		return 0L;
-	}
-
-	LRESULT OnFileOpen(WORD /*wNotifyCode*/, WORD /*wID*/, HWND /*hWndCtl*/, BOOL& /*bHandled*/)
+	LRESULT OnStop(WORD /*wNotifyCode*/, WORD /*wID*/, HWND /*hWndCtl*/, BOOL& /*bHandled*/)
 	{
 		if( bServerInitialize && !bThreadSuspended )
 		{
 			m_pServer->Suspend();
-			bThreadSuspended = true;
-			m_view.PostMessageW(WM_USER+10,NULL,2);
+			bThreadSuspended = TRUE;
+			m_view.PostMessage(WM_CODE_INFORMATION,NULL,2);
 		}
 
 		return 0L;
 	}
 
+	LRESULT OnClear(WORD /*wNotifyCode*/, WORD /*wID*/, HWND /*hWndCtl*/, BOOL& /*bHandled*/)
+	{
+		return m_view.DeleteAllItems();
+	}
+
 	LRESULT OnURLSetting(WORD /*wNotifyCode*/, WORD /*wID*/, HWND /*hWndCtl*/, BOOL& /*bHandled*/)
 	{
-		CURLOptions url(_T("URLs Configuration:"),0,*this);
-		url.DoModal();
+		CURLOptions url(_T("URLs Configuration:"));
+		if( IDOK==url.DoModal(*this) )
+		{
+			if( m_pServer->InitializeHttp() )
+			{
+				INT iCount=0;
+				if( url.HasPages() )
+				{
+					iCount = SaveGroups(url);
+				}
+				else
+				{
+					HTTP_URL_GROUP_ID gID=0;
+					wstring wURL = url.GetURLbyDefault();
+
+					m_pServer->CreateUrlGroup(gID);
+					if( m_pServer->AddUrlToUrlGroup(gID,wURL.c_str()) )
+					{
+						m_view.SendMessage(WM_CODE_INFORMATION,(WPARAM)&wURL,8);
+						iCount = 1;
+					}
+				}
+
+				if( iCount )
+				{
+					// menu enabling items
+					m_Menu.EnableMenuItem(ID_FILE_NEW,MF_ENABLED);
+					m_Menu.EnableMenuItem(ID_FILE_OPEN,MF_ENABLED);
+
+					// toolbar enabling buttons
+					m_TB.EnableButton(ID_FILE_NEW,TRUE);
+					m_TB.EnableButton(ID_FILE_OPEN,TRUE);
+				}
+			}
+		}
 
 		return 0L;
+	}
+
+	INT SaveGroups(CURLOptions& url) 
+	{
+		INT count=0;
+		wstring wURL;
+		size_t pag = 0;
+		CGroupPage * pPage = NULL;
+		HTTP_URL_GROUP_ID gID=0;
+
+		while( (pPage = url[pag++])!=NULL )
+		{
+			vector<wstring>& vURLs = pPage->GetURLs();
+			if( vURLs.size()>0 )
+			{
+				m_pServer->CreateUrlGroup(gID);
+
+				for(size_t i=0;i<vURLs.size();i++)
+				{
+					wURL = vURLs[i];
+					if( m_pServer->AddUrlToUrlGroup(gID,wURL.c_str()) )
+					{
+						m_view.SendMessage(WM_CODE_INFORMATION,(WPARAM)&wURL,8);
+						count ++; 
+					}
+				}
+			}
+		}
+
+		return count;
 	}
 		
 	LRESULT OnViewToolBar(WORD /*wNotifyCode*/, WORD /*wID*/, HWND /*hWndCtl*/, BOOL& /*bHandled*/)
@@ -194,8 +274,9 @@ public:
 	}
 
 private:
-	CHttpServer * m_pServer;
-	BOOL		bServerInitialize;
-	BOOL		bThreadSuspended;
-
+	CHttpServer *	m_pServer;
+	BOOL			bServerInitialize;
+	BOOL			bThreadSuspended;
+	CToolBarCtrl	m_TB;
+	CMenu			m_Menu;
 };
