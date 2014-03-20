@@ -2,6 +2,9 @@
 #include "URLOptions.h"
 
 #include <string>
+#include <atldlgs.h>
+#include "wtl2View.h"
+
 
 #define MAX_URL_LENGTH		300
 #define SPIN_BOTTON			0
@@ -33,7 +36,7 @@ LRESULT CURLOptions::OnGroupsChange(UINT /*uMsg*/, WPARAM wParam, LPARAM /*lPara
 	if( bInsert )
 	{
 		int n = m_groups.size() + 1;
-		pPage = new CGroupPage(n);
+		pPage = new CGroupPage(n,m_psh.hwndParent);
 		if( AddPage(*pPage) )
 		{
 			m_groups.push_back(pPage);
@@ -175,9 +178,10 @@ BOOL CSettingsPage::OnApply()
  *	CGroupPage
  */
 
-CGroupPage::CGroupPage(HTTP_URL_GROUP_ID id)
+CGroupPage::CGroupPage(HTTP_URL_GROUP_ID id,HWND hwnd)
 	:m_gID(id)
 	,m_title(L"")
+	,m_hView(hwnd)
 {
 	wchar_t cad[100];
 	swprintf_s(cad,100,L"URLs for group %d",id);
@@ -244,4 +248,61 @@ BOOL CGroupPage::OnApply()
 	}
 
 	return TRUE;
+}
+
+
+LRESULT CGroupPage::OnLoadFromFile(WORD /*wNotifyCode*/, WORD /*wID*/, HWND /*hWndCtl*/, BOOL& /*bHandled*/)
+{
+	// TODO: Add your control notification handler code here
+	CFileDialog fd(TRUE);
+	if( fd.DoModal() == IDOK )
+	{
+		HANDLE hFile = CreateFile(fd.m_szFileName,
+								  GENERIC_READ,
+								  FILE_SHARE_READ,
+								  NULL,
+								  OPEN_EXISTING,
+								  FILE_ATTRIBUTE_NORMAL,
+								  NULL
+								  );
+
+		if(  INVALID_HANDLE_VALUE==hFile )
+		{
+			DWORD error = GetLastError();
+			SendMessage(m_hView,WM_CODE_INFORMATION,error,4);
+		}
+		else
+		{
+			LARGE_INTEGER fl;
+			if( GetFileSizeEx(hFile,&fl) )
+			{
+				DWORD rb=0;
+				char * pBuffer = new char[fl.LowPart];
+
+				ReadFile(hFile,pBuffer,fl.LowPart,&rb,NULL);
+				CloseHandle(hFile);
+
+				FileToList(pBuffer);
+				
+				delete [] pBuffer;
+			}
+		}
+
+	}
+
+	return 0;
+}
+
+void CGroupPage::FileToList(char *pBuffer)
+{
+	wchar_t wc[MAX_URL_LENGTH+1];
+	size_t bc=0;
+	char * pLine = pBuffer, * pMask=NULL;
+	while( (pMask=strstr(pLine,"\r\n"))!=NULL )
+	{
+		*pMask=0;
+		mbstowcs_s(&bc,wc,MAX_URL_LENGTH,pLine,MAX_URL_LENGTH);
+		m_lb.AddString(wc);
+		pLine=pMask+2;
+	}
 }

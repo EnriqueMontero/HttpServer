@@ -27,6 +27,8 @@ public:
 //	LRESULT CommandHandler(WORD /*wNotifyCode*/, WORD /*wID*/, HWND /*hWndCtl*/, BOOL& /*bHandled*/)
 //	LRESULT NotifyHandler(int /*idCtrl*/, LPNMHDR /*pnmh*/, BOOL& /*bHandled*/)
 
+	
+
 	LRESULT OnInformation(UINT /*uMsg*/, WPARAM wParam, LPARAM lParam, BOOL& /*bHandled*/)
 	{
 		ULONG index = (ULONG)lParam;
@@ -44,7 +46,8 @@ public:
 			ws1 = L"Get Processed";
 			break;
 		case 4:
-			ws1 = L"The Server is already running";
+			ws1 = L"Open File Error";
+			ws2 = to_wstring (wParam);
 			break;
 		case 5:
 			ws1 = L"Error starting server";
@@ -66,6 +69,7 @@ public:
 		{
 			int nItem = GetItemCount();
 			nItem = InsertItem(nItem,ws1.c_str());
+			SetItemData(nItem,index);
 			if( ws2.length() )
 				SetItemText(nItem,1,ws2.c_str());
 			if( ws3.length() )

@@ -52,7 +52,7 @@ public:
 		return 0;
 	}
 
-	USHORT ReponseEntity(CEntity& aEntity,char **pEntityString)
+	USHORT ReponseEntity(PHTTP_REQUEST pRequest,CEntity& aEntity,char **pEntityString)
 	{
 		PostMessage(m_hwnd,WM_CODE_INFORMATION,NULL,6);
 		return 0;

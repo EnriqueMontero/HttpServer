@@ -16,7 +16,7 @@ class CGroupPage :
 public:
 	enum { IDD = IDD_DIALOG1 };
 	
-	CGroupPage(HTTP_URL_GROUP_ID id);
+	CGroupPage(HTTP_URL_GROUP_ID id,HWND hwnd);
 	~CGroupPage();
 
 	// Maps
@@ -24,6 +24,7 @@ public:
 		MESSAGE_HANDLER(WM_INITDIALOG, OnInitDialog)
 		COMMAND_HANDLER(IDC_BUTTON1, BN_CLICKED, OnBnClickedButton1)
 		COMMAND_HANDLER(IDC_BUTTON2, BN_CLICKED, OnBnClickedButton2)
+		COMMAND_HANDLER(IDC_BUTTON3, BN_CLICKED, OnLoadFromFile)
 		CHAIN_MSG_MAP(CPropertyPageImpl<CGroupPage>)
 	END_MSG_MAP()
 
@@ -31,13 +32,17 @@ public:
 	LRESULT OnInitDialog(UINT /*uMsg*/, WPARAM /*wParam*/, LPARAM /*lParam*/, BOOL& /*bHandled*/);
 	LRESULT OnBnClickedButton1(WORD /*wNotifyCode*/, WORD /*wID*/, HWND /*hWndCtl*/, BOOL& /*bHandled*/);
 	LRESULT OnBnClickedButton2(WORD /*wNotifyCode*/, WORD /*wID*/, HWND /*hWndCtl*/, BOOL& /*bHandled*/);
+	LRESULT OnLoadFromFile(WORD /*wNotifyCode*/, WORD /*wID*/, HWND /*hWndCtl*/, BOOL& /*bHandled*/);
 
 	// Property page notification handlers
 	BOOL OnApply();
+
+	// Helper
 	vector<wstring>& GetURLs()
 	{
 		return m_vURLs;
 	}
+	void FileToList(char *pBuffer);
 
 private:
 	CListBox			m_lb;
@@ -48,6 +53,7 @@ private:
 	HTTP_URL_GROUP_ID	m_gID;
 	wstring				m_title;
 	vector<wstring>		m_vURLs;
+	HWND				m_hView;
 };
 
 class CSettingsPage : 

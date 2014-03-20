@@ -46,6 +46,7 @@ public:
 		COMMAND_ID_HANDLER(ID_VIEW_TOOLBAR, OnViewToolBar)
 		COMMAND_ID_HANDLER(ID_VIEW_STATUS_BAR, OnViewStatusBar)
 		COMMAND_ID_HANDLER(ID_APP_ABOUT, OnAppAbout)
+		NOTIFY_CODE_HANDLER(NM_CUSTOMDRAW,OnCustomDraw)
 		CHAIN_MSG_MAP(CUpdateUI<CMainFrame>)
 		CHAIN_MSG_MAP(CFrameWindowImpl<CMainFrame>)
 	END_MSG_MAP()
@@ -76,10 +77,11 @@ public:
 
 		CreateSimpleStatusBar();
 
-		m_hWndClient = m_view.Create(m_hWnd, rcDefault, NULL, WS_CHILD | WS_VISIBLE | WS_CLIPSIBLINGS | WS_CLIPCHILDREN | LVS_REPORT | LVS_SHOWSELALWAYS, WS_EX_CLIENTEDGE);
+		m_hWndClient = m_view.Create(m_hWnd, rcDefault, NULL, WS_CHILD | WS_VISIBLE | WS_CLIPSIBLINGS | WS_CLIPCHILDREN | LVS_REPORT | LVS_SHOWSELALWAYS, WS_EX_CLIENTEDGE );
 		
 		RECT rc;
-		this->GetClientRect(&rc);
+		GetClientRect(&rc);
+		m_view.SetExtendedListViewStyle(m_view.GetExtendedListViewStyle()|LVS_EX_GRIDLINES);
 		m_view.FillPlease(rc);
 
 		UIAddToolBar(hWndToolBar);
@@ -137,6 +139,7 @@ public:
 			if( !bServerInitialize )	// error starting server
 				m_view.PostMessageW(WM_CODE_INFORMATION,NULL,5);
 		}
+
 		if( bServerInitialize )
 		{
 			if(	bThreadSuspended )
@@ -157,6 +160,7 @@ public:
 
 		return 0L;
 	}
+
 	LRESULT OnStop(WORD /*wNotifyCode*/, WORD /*wID*/, HWND /*hWndCtl*/, BOOL& /*bHandled*/)
 	{
 		if( bServerInitialize && !bThreadSuspended )
@@ -176,7 +180,7 @@ public:
 
 	LRESULT OnURLSetting(WORD /*wNotifyCode*/, WORD /*wID*/, HWND /*hWndCtl*/, BOOL& /*bHandled*/)
 	{
-		CURLOptions url(_T("URLs Configuration:"));
+		CURLOptions url(_T("URLs Configuration:"),0,m_hWndClient);
 		if( IDOK==url.DoModal(*this) )
 		{
 			if( m_pServer->InitializeHttp() )
@@ -279,4 +283,58 @@ private:
 	BOOL			bThreadSuspended;
 	CToolBarCtrl	m_TB;
 	CMenu			m_Menu;
+
+	LRESULT OnCustomDraw(int /*idCtrl*/, LPNMHDR lParam, BOOL& /*bHandled*/)
+	{
+		if( lParam->hwndFrom==m_hWndClient )
+			return ViewCustomDraw((LPNMLVCUSTOMDRAW)lParam);
+		return 0;
+	}
+
+	LRESULT ViewCustomDraw(LPNMLVCUSTOMDRAW lvcd)
+	{
+		LRESULT rc = CDRF_DODEFAULT;
+		switch( lvcd->nmcd.dwDrawStage )
+		{
+		case CDDS_PREPAINT:
+			rc = CDRF_NOTIFYITEMDRAW;
+			break;
+		case CDDS_ITEMPREPAINT:
+			rc = CDRF_NOTIFYSUBITEMDRAW;
+			break;
+		case CDDS_SUBITEM | CDDS_ITEMPREPAINT:
+			ULONG itemType = (ULONG)lvcd->nmcd.lItemlParam;
+			COLORREF bk,fg=RGB(0,0,0);
+			switch( itemType )
+			{
+			case 1:
+				bk=RGB(0,255,0);
+				break;
+			case 2:
+				bk=RGB(0,64,0);
+				fg=RGB(255,255,255);
+				break;
+			case 4:
+			case 5:
+			case 7:
+				bk=RGB(255,0,0);
+				fg=RGB(255,255,255);
+				break;
+			case 3:
+			case 6:
+				bk=bk=RGB(192,255,192);
+				break;
+			case 8:
+				bk=RGB(255,219,0);
+				break;
+			}
+			lvcd->clrText=fg;
+			lvcd->clrTextBk=bk;
+			rc = CDRF_NEWFONT;
+			break;
+		}
+
+		return rc;
+	}
+
 };

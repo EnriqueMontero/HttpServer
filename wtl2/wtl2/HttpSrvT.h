@@ -26,26 +26,33 @@ public:
 	CHttpSrvT()
 		:m_session(NULL)
 		,m_requestQueue(NULL)
+		,m_bInitialized(FALSE)
 	{
 		m_groups.clear();
 	}
 	
-	bool InitializeHttp() 
+	BOOL InitializeHttp() 
 	{
-		HTTPAPI_VERSION HttpApiVersion = HTTPAPI_VERSION_2;
+		if( !m_bInitialized )
+		{
+			HTTPAPI_VERSION HttpApiVersion = HTTPAPI_VERSION_2;
 
-		// Initialize HTTP Server APIs
-		ULONG rc = HttpInitialize(HttpApiVersion,HTTP_INITIALIZE_SERVER,NULL);
+			// Initialize HTTP Server APIs
+			ULONG rc = HttpInitialize(HttpApiVersion,HTTP_INITIALIZE_SERVER,NULL);
 		
-		// Create Request Queue
-		if( rc==NO_ERROR )
-			rc = HttpCreateRequestQueue(HttpApiVersion,NULL,NULL,0,&m_requestQueue);
+			// Create Request Queue
+			if( rc==NO_ERROR )
+				rc = HttpCreateRequestQueue(HttpApiVersion,NULL,NULL,0,&m_requestQueue);
 
-		// Create server session
-		if( rc==NO_ERROR )
-			rc = HttpCreateServerSession(HttpApiVersion,&m_session,0);
+			// Create server session
+			if( rc==NO_ERROR )
+				rc = HttpCreateServerSession(HttpApiVersion,&m_session,0);
+			
+			// Set state variable
+			m_bInitialized = rc==NO_ERROR;
+		}
 
-		return rc==NO_ERROR;
+		return m_bInitialized;
 	}
 
 	bool CreateUrlGroup(HTTP_URL_GROUP_ID& gID)
@@ -282,7 +289,7 @@ protected:
                 case ERROR_HANDLE_EOF:
 					entity.Add(BytesRead);
 					bMoreData = FALSE;
-					pT->ReponseEntity(entity,&pEntityString);
+					pT->ReponseEntity(pRequest,entity,&pEntityString);
 					if( pEntityString )
 					{
 						HTTP_DATA_CHUNK dataChunk;
@@ -351,6 +358,7 @@ protected:
 	HTTP_SERVER_SESSION_ID m_session;
 	vector<HTTP_URL_GROUP_ID> m_groups;
 	HANDLE m_requestQueue;
+	BOOL m_bInitialized;
 };
 
 template<class T>
