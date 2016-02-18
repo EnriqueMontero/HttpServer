@@ -42,6 +42,8 @@ public:
 	{
 		return m_vURLs;
 	}
+
+protected:
 	void FileToList(char *pBuffer);
 
 private:
@@ -119,7 +121,7 @@ public:
 	// helper
 	BOOL HasPages() const;
 	wstring GetURLbyDefault() const;
-	CGroupPage * operator [](const size_t index) const;
+	CGroupPage * operator [] (const size_t index) const;
 		
 private:
 	CSettingsPage page;

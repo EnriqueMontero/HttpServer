@@ -287,54 +287,7 @@ private:
 	LRESULT OnCustomDraw(int /*idCtrl*/, LPNMHDR lParam, BOOL& /*bHandled*/)
 	{
 		if( lParam->hwndFrom==m_hWndClient )
-			return ViewCustomDraw((LPNMLVCUSTOMDRAW)lParam);
+			return m_view.OnCustomDraw((LPNMLVCUSTOMDRAW)lParam);
 		return 0;
 	}
-
-	LRESULT ViewCustomDraw(LPNMLVCUSTOMDRAW lvcd)
-	{
-		LRESULT rc = CDRF_DODEFAULT;
-		switch( lvcd->nmcd.dwDrawStage )
-		{
-		case CDDS_PREPAINT:
-			rc = CDRF_NOTIFYITEMDRAW;
-			break;
-		case CDDS_ITEMPREPAINT:
-			rc = CDRF_NOTIFYSUBITEMDRAW;
-			break;
-		case CDDS_SUBITEM | CDDS_ITEMPREPAINT:
-			ULONG itemType = (ULONG)lvcd->nmcd.lItemlParam;
-			COLORREF bk,fg=RGB(0,0,0);
-			switch( itemType )
-			{
-			case 1:
-				bk=RGB(0,255,0);
-				break;
-			case 2:
-				bk=RGB(0,64,0);
-				fg=RGB(255,255,255);
-				break;
-			case 4:
-			case 5:
-			case 7:
-				bk=RGB(255,0,0);
-				fg=RGB(255,255,255);
-				break;
-			case 3:
-			case 6:
-				bk=bk=RGB(192,255,192);
-				break;
-			case 8:
-				bk=RGB(255,219,0);
-				break;
-			}
-			lvcd->clrText=fg;
-			lvcd->clrTextBk=bk;
-			rc = CDRF_NEWFONT;
-			break;
-		}
-
-		return rc;
-	}
-
 };

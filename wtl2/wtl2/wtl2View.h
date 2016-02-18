@@ -27,8 +27,6 @@ public:
 //	LRESULT CommandHandler(WORD /*wNotifyCode*/, WORD /*wID*/, HWND /*hWndCtl*/, BOOL& /*bHandled*/)
 //	LRESULT NotifyHandler(int /*idCtrl*/, LPNMHDR /*pnmh*/, BOOL& /*bHandled*/)
 
-	
-
 	LRESULT OnInformation(UINT /*uMsg*/, WPARAM wParam, LPARAM lParam, BOOL& /*bHandled*/)
 	{
 		ULONG index = (ULONG)lParam;
@@ -97,6 +95,52 @@ public:
 		InsertColumn(3,L"Tercera",LVCFMT_CENTER,wUnit);
 
 		return 0L;
+	}
+
+LRESULT OnCustomDraw(LPNMLVCUSTOMDRAW lvcd)
+	{
+		LRESULT rc = CDRF_DODEFAULT;
+		switch( lvcd->nmcd.dwDrawStage )
+		{
+		case CDDS_PREPAINT:
+			rc = CDRF_NOTIFYITEMDRAW;
+			break;
+		case CDDS_ITEMPREPAINT:
+			rc = CDRF_NOTIFYSUBITEMDRAW;
+			break;
+		case CDDS_SUBITEM | CDDS_ITEMPREPAINT:
+			ULONG itemType = (ULONG)lvcd->nmcd.lItemlParam;
+			COLORREF bk,fg=RGB(0,0,0);
+			switch( itemType )
+			{
+			case 1:
+				bk=RGB(0,255,0);
+				break;
+			case 2:
+				bk=RGB(0,64,0);
+				fg=RGB(255,255,255);
+				break;
+			case 4:
+			case 5:
+			case 7:
+				bk=RGB(255,0,0);
+				fg=RGB(255,255,255);
+				break;
+			case 3:
+			case 6:
+				bk=bk=RGB(192,255,192);
+				break;
+			case 8:
+				bk=RGB(255,219,0);
+				break;
+			}
+			lvcd->clrText=fg;
+			lvcd->clrTextBk=bk;
+			rc = CDRF_DODEFAULT;
+			break;
+		}
+
+		return rc;
 	}
 };
 
